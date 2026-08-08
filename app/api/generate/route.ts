@@ -43,7 +43,18 @@ QUY TẮC ĐỊNH DẠNG VÀ TRÌNH BÀY:
 8. Văn phong nói chuyện tự nhiên, thuần Việt, đúng tâm lý nhân vật.`;
 
     if (duration) {
-      systemInstruction += `\n9. Kịch bản cần viết chi tiết, mở rộng các phân đoạn hội thoại sinh động phù hợp thời lượng ước tính khoảng ${duration} phút.`;
+      const durationNum = parseInt(duration, 10);
+      // ~140 words/min for spoken dialogue in Vietnamese
+      const targetWordCount = durationNum * 140;
+      const targetSegments = Math.max(2, Math.ceil(durationNum / 5));
+      systemInstruction += `
+9. YÊU CẦU VỀ ĐỘ DÀI (BẮT BUỘC TUÂN THỦ):
+   - Thời lượng mục tiêu: ${durationNum} PHÚT khi đọc/diễn xuất thực tế.
+   - Tốc độ nói tự nhiên tiếng Việt: ~140 từ/phút → Kịch bản phải đạt TỐI THIỂU ${targetWordCount} từ.
+   - Chia thành ÍT NHẤT ${targetSegments} phân đoạn (## Phần 1, ## Phần 2,...) với nội dung phong phú, mỗi phần có chủ đề và diễn biến riêng.
+   - MỖI PHẦN phải có nhiều lượt trao đổi qua lại (không phải chỉ vài câu).
+   - KHÔNG được kết thúc sớm. Viết ĐẦY ĐỦ cho đến khi đạt đủ ${targetWordCount} từ.
+   - Nếu chủ đề đã được bao quát, hãy đi sâu thêm: phân tích chi tiết, ví dụ thực tế, phản biện, câu chuyện phụ, liên hệ thực tiễn — miễn là tự nhiên và phù hợp.`;
     }
 
     const prompt = `Hệ thống: ${systemInstruction}\n\nThông tin kịch bản:\n${scriptInfo}\n\nHãy viết kịch bản hội thoại:`;
