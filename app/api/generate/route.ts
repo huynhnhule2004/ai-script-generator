@@ -14,7 +14,7 @@ const FALLBACK_MODELS = [
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt: scriptInfo, duration, char1Name, char1Pronoun, char2Name, char2Pronoun } = await req.json();
+    const { prompt: scriptInfo, duration, char1Name, char1Pronoun, char1Voice, char2Name, char2Pronoun, char2Voice } = await req.json();
 
     if (!scriptInfo || !char1Name || !char1Pronoun || !char2Name || !char2Pronoun) {
       return NextResponse.json({ error: 'Thiếu thông tin yêu cầu.' }, { status: 400 });
@@ -30,18 +30,20 @@ QUY TẮC VỀ PHONG CÁCH HỘI THOẠI (QUAN TRỌNG NHẤT):
 - CÓ THỂ thêm các từ ngập ngừng, ậm ừ tự nhiên như "ờ...", "à...", "ừm...", "thì... thì...", "ý là..." để nhân vật nghe thật và sống động hơn. Dùng một cách tự nhiên, không lạm dụng.
 - Nhân vật được phép nói chưa hết ý rồi bị ngắt, hoặc hỏi lại, hoặc đổi chủ đề — y như hội thoại thật.
 - TUYỆT ĐỐI KHÔNG để một nhân vật độc thoại dài nhiều câu liền tục.
+- TUYỆT ĐỐI KHÔNG để nhân vật gọi tên nhau trong lời thoại (không nói "Minh ơi...", "Linh à..." v.v.). Chỉ dùng cách xưng hô (anh, em, bạn...) khi cần, còn không thì nói thẳng vào nội dung.
 
 QUY TẮC ĐỊNH DẠNG VÀ TRÌNH BÀY:
-1. Nhân vật 1 tên ${char1Name} xưng ${char1Pronoun}.
-2. Nhân vật 2 tên ${char2Name} xưng ${char2Pronoun}.
-3. BẮT BUỘC ghi tên nhân vật ở đầu mỗi câu thoại theo chuẩn dạng: [${char1Name}]: hoặc [${char2Name}]:.
-4. Tiêu đề các phân đoạn BẮT BUỘC ghi theo chuẩn Markdown Heading 2: ## Phần 1: [Tên phần], ## Phần 2: [Tên phần]...
-5. TUYỆT ĐỐI KHÔNG IN ĐẬM nội dung câu thoại hay bất kỳ lời văn nào phía sau.
-6. Cách 1 dòng trống giữa các câu thoại để trình bày thoáng mắt.
-7. Văn phong nói chuyện tự nhiên, thuần Việt, đúng tâm lý nhân vật.`;
+1. Nhân vật 1 tên ${char1Name}, giới tính ${char1Voice === 'female' ? 'NỮ' : 'NAM'}, xưng là "${char1Pronoun}" khi nói về bản thân.
+2. Nhân vật 2 tên ${char2Name}, giới tính ${char2Voice === 'female' ? 'NỮ' : 'NAM'}, xưng là "${char2Pronoun}" khi nói về bản thân.
+3. Khi cần gọi hoặc đề cập đến đối phương, dùng cách xưng hô phù hợp với GIỚI TÍNH và quan hệ thực tế. Gợi ý: nếu đối phương là NỮ có thể gọi là "bà" (thân mật, bạn bè), "bạn", "cô", "chị", "em" — KHÔNG gọi là "ông", "anh". Nếu đối phương là NAM có thể gọi là "ông" (thân mật), "bạn", "anh", "chú", "em" — KHÔNG gọi là "bà", "chị". Ưu tiên cách xưng hô phù hợp ngữ cảnh và tự nhiên nhất.
+4. BẮT BUỘC ghi tên nhân vật ở đầu mỗi câu thoại theo chuẩn dạng: [${char1Name}]: hoặc [${char2Name}]:.
+5. Tiêu đề các phân đoạn BẮT BUỘC ghi theo chuẩn Markdown Heading 2: ## Phần 1: [Tên phần], ## Phần 2: [Tên phần]...
+6. TUYỆT ĐỐI KHÔNG IN ĐẬM nội dung câu thoại hay bất kỳ lời văn nào phía sau.
+7. Cách 1 dòng trống giữa các câu thoại để trình bày thoáng mắt.
+8. Văn phong nói chuyện tự nhiên, thuần Việt, đúng tâm lý nhân vật.`;
 
     if (duration) {
-      systemInstruction += `\n7. Kịch bản cần viết chi tiết, mở rộng các phân đoạn hội thoại sinh động phù hợp thời lượng ước tính khoảng ${duration} phút.`;
+      systemInstruction += `\n9. Kịch bản cần viết chi tiết, mở rộng các phân đoạn hội thoại sinh động phù hợp thời lượng ước tính khoảng ${duration} phút.`;
     }
 
     const prompt = `Hệ thống: ${systemInstruction}\n\nThông tin kịch bản:\n${scriptInfo}\n\nHãy viết kịch bản hội thoại:`;

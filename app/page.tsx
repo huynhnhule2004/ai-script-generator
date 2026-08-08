@@ -9,10 +9,12 @@ import Toast from "./components/Toast";
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState("5");
-  const [char1Name, setChar1Name] = useState("");
-  const [char1Pronoun, setChar1Pronoun] = useState("");
-  const [char2Name, setChar2Name] = useState("");
-  const [char2Pronoun, setChar2Pronoun] = useState("");
+  const [char1Name, setChar1Name] = useState("Minh");
+  const [char1Pronoun, setChar1Pronoun] = useState("Anh");
+  const [char1Voice, setChar1Voice] = useState<"male" | "female">("male");
+  const [char2Name, setChar2Name] = useState("Linh");
+  const [char2Pronoun, setChar2Pronoun] = useState("Em");
+  const [char2Voice, setChar2Voice] = useState<"male" | "female">("female");
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [generatedScript, setGeneratedScript] = useState("");
@@ -71,6 +73,9 @@ export default function Home() {
     setChar1Pronoun(sample.char1Pronoun);
     setChar2Name(sample.char2Name);
     setChar2Pronoun(sample.char2Pronoun);
+    // Reset voice defaults khi dùng mẫu
+    setChar1Voice("male");
+    setChar2Voice("female");
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -99,8 +104,10 @@ export default function Home() {
           duration,
           char1Name,
           char1Pronoun,
+          char1Voice,
           char2Name,
           char2Pronoun,
+          char2Voice,
         }),
       });
 
@@ -323,7 +330,7 @@ export default function Home() {
                     type="text"
                     required
                     className="w-full bg-white dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700/70 rounded-xl px-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-blue-500 focus:outline-none"
-                    placeholder="VD: Vương"
+                    placeholder="VD: Minh"
                     value={char1Name}
                     onChange={(e) => setChar1Name(e.target.value)}
                   />
@@ -357,6 +364,34 @@ export default function Home() {
                     <option value="Tao">Tao</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 block mb-1">🎙 Giọng đọc</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setChar1Voice("male")}
+                      className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        char1Voice === "male"
+                          ? "bg-blue-600 text-white border-blue-500 shadow-sm shadow-blue-500/30"
+                          : "bg-white dark:bg-zinc-900/90 border-zinc-200 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-400 hover:border-blue-400"
+                      }`}
+                    >
+                      👨 Nam
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChar1Voice("female")}
+                      className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        char1Voice === "female"
+                          ? "bg-pink-500 text-white border-pink-400 shadow-sm shadow-pink-500/30"
+                          : "bg-white dark:bg-zinc-900/90 border-zinc-200 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-400 hover:border-pink-400"
+                      }`}
+                    >
+                      👩 Nữ
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Character 2 Card */}
@@ -374,7 +409,7 @@ export default function Home() {
                     type="text"
                     required
                     className="w-full bg-white dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-700/70 rounded-xl px-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:border-purple-500 focus:outline-none"
-                    placeholder="VD: Như"
+                    placeholder="VD: Linh"
                     value={char2Name}
                     onChange={(e) => setChar2Name(e.target.value)}
                   />
@@ -407,6 +442,34 @@ export default function Home() {
                     <option value="Mày">Mày</option>
                     <option value="Tao">Tao</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-zinc-600 dark:text-zinc-400 block mb-1">🎙 Giọng đọc</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setChar2Voice("male")}
+                      className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        char2Voice === "male"
+                          ? "bg-blue-600 text-white border-blue-500 shadow-sm shadow-blue-500/30"
+                          : "bg-white dark:bg-zinc-900/90 border-zinc-200 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-400 hover:border-blue-400"
+                      }`}
+                    >
+                      👨 Nam
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setChar2Voice("female")}
+                      className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        char2Voice === "female"
+                          ? "bg-pink-500 text-white border-pink-400 shadow-sm shadow-pink-500/30"
+                          : "bg-white dark:bg-zinc-900/90 border-zinc-200 dark:border-zinc-700/70 text-zinc-500 dark:text-zinc-400 hover:border-pink-400"
+                      }`}
+                    >
+                      👩 Nữ
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
