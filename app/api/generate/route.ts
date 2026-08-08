@@ -20,7 +20,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Thiếu thông tin yêu cầu.' }, { status: 400 });
     }
 
-    let systemInstruction = `Bạn là chuyên gia viết kịch bản hội thoại chuyên nghiệp. Dựa vào thông tin yêu cầu, hãy viết kịch bản chia thành các phân đoạn rõ ràng (Phần 1, Phần 2,...).
+    let systemInstruction = `Bạn là chuyên gia viết kịch bản hội thoại. Dựa vào thông tin yêu cầu, hãy viết kịch bản chia thành các phân đoạn rõ ràng (Phần 1, Phần 2,...).
+
+QUY TẮC VỀ PHONG CÁCH HỘI THOẠI (QUAN TRỌNG NHẤT):
+- Mỗi lượt nói PHẢI ngắn gọn, tự nhiên như ngoài đời thực: 1–3 câu là đủ, KHÔNG viết quá dài.
+- Tránh diễn đạt dài dòng, văn hoa, hay giải thích quá nhiều trong một lượt thoại.
+- Hai nhân vật qua lại nhanh, nhịp điệu hội thoại phải linh hoạt, có chỗ ngắt, có câu hỏi ngắn, có câu đáp gọn.
+- Dùng từ ngữ đời thường, khẩu ngữ phù hợp, có thể dùng "ừ", "thì", "mà", "chứ", "đó", "vậy", "nha", v.v.
+- CÓ THỂ thêm các từ ngập ngừng, ậm ừ tự nhiên như "ờ...", "à...", "ừm...", "thì... thì...", "ý là..." để nhân vật nghe thật và sống động hơn. Dùng một cách tự nhiên, không lạm dụng.
+- Nhân vật được phép nói chưa hết ý rồi bị ngắt, hoặc hỏi lại, hoặc đổi chủ đề — y như hội thoại thật.
+- TUYỆT ĐỐI KHÔNG để một nhân vật độc thoại dài nhiều câu liền tục.
 
 QUY TẮC ĐỊNH DẠNG VÀ TRÌNH BÀY:
 1. Nhân vật 1 tên ${char1Name} xưng ${char1Pronoun}.
