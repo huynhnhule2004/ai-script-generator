@@ -24,6 +24,13 @@ export default function Home() {
   const [isTeleprompterOpen, setIsTeleprompterOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [toastMessage, setToastMessage] = useState("");
+  // API Key state
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showApiGuide, setShowApiGuide] = useState(false);
+  const [keyValidStatus, setKeyValidStatus] = useState<"idle" | "checking" | "valid" | "invalid" | "warning">("idle");
+  const [keyValidMsg, setKeyValidMsg] = useState("");
+  const hasApiKey = apiKey.trim().length > 0;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -33,7 +40,55 @@ export default function Home() {
     // Check current theme state
     const isDarkModeActive = document.documentElement.classList.contains("dark");
     setIsDark(isDarkModeActive);
+    // Load saved API key from localStorage
+    const savedKey = localStorage.getItem("gemini_api_key") || "";
+    setApiKey(savedKey);
   }, []);
+
+  const handleApiKeyChange = (value: string) => {
+    setApiKey(value);
+    localStorage.setItem("gemini_api_key", value);
+    // Reset validation when key changes
+    setKeyValidStatus("idle");
+    setKeyValidMsg("");
+  };
+
+  const handleClearApiKey = () => {
+    setApiKey("");
+    localStorage.removeItem("gemini_api_key");
+    setKeyValidStatus("idle");
+    setKeyValidMsg("");
+    showToast("Đã xoá API Key.");
+  };
+
+  const handleValidateKey = async () => {
+    if (!hasApiKey) return;
+    setKeyValidStatus("checking");
+    setKeyValidMsg("");
+    try {
+      const res = await fetch("/api/validate-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setKeyValidStatus("valid");
+        setKeyValidMsg(data.message || "API Key h\u1ee3p l\u1ec7!");
+      } else if (res.status === 503) {
+        // Server busy — cannot confirm but also cannot deny
+        setKeyValidStatus("warning" as any);
+        setKeyValidMsg(data.message || "M\u00e1y ch\u1ee7 \u0111ang b\u1eadn, kh\u00f4ng th\u1ec3 x\u00e1c nh\u1eadn.");
+      } else {
+        setKeyValidStatus("invalid");
+        setKeyValidMsg(data.message || "API Key kh\u00f4ng h\u1ee3p l\u1ec7.");
+      }
+    } catch {
+      setKeyValidStatus("invalid");
+      setKeyValidMsg("Kh\u00f4ng th\u1ec3 k\u1ebft n\u1ed1i \u0111\u1ec3 ki\u1ec3m tra. Vui l\u00f2ng th\u1eed l\u1ea1i.");
+    }
+  };
+
 
   const toggleTheme = () => {
     if (document.documentElement.classList.contains("dark")) {
@@ -108,6 +163,7 @@ export default function Home() {
           char2Name,
           char2Pronoun,
           char2Voice,
+          apiKey: apiKey.trim(),
         }),
       });
 
@@ -129,15 +185,18 @@ export default function Home() {
     }
   };
 
-  // Stats calculation
+  // Stats calculation — 130 wpm matches the backend prompt instruction
+  const WPM = 130;
   const scriptStats = useMemo(() => {
-    if (!generatedScript) return { wordCount: 0, charCount: 0, estimatedMinutes: 0 };
+    if (!generatedScript) return { wordCount: 0, charCount: 0, estimatedMinutes: "0", estimatedMinutesNum: 0 };
     const cleanText = generatedScript.replace(/\*\*/g, "");
     const words = cleanText.trim().split(/\s+/).filter(Boolean);
     const wordCount = words.length;
-    const estimatedMinutes = (wordCount / 140).toFixed(1);
-    return { wordCount, charCount: cleanText.length, estimatedMinutes };
+    const estimatedMinutesNum = wordCount / WPM;
+    const estimatedMinutes = estimatedMinutesNum.toFixed(1);
+    return { wordCount, charCount: cleanText.length, estimatedMinutes, estimatedMinutesNum };
   }, [generatedScript]);
+
 
   // Filter script by speaker
   const filteredScript = useMemo(() => {
@@ -229,9 +288,17 @@ export default function Home() {
                   <span className="font-bold text-zinc-900 dark:text-white">{scriptStats.wordCount}</span>
                 </div>
                 <div className="w-px h-3 bg-zinc-300 dark:bg-zinc-700"></div>
-                <div>
-                  <span className="text-zinc-500 dark:text-zinc-400">Thời gian đọc: </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-500 dark:text-zinc-400">Thời lượng: </span>
                   <span className="font-bold text-blue-600 dark:text-blue-400">~{scriptStats.estimatedMinutes} phút</span>
+                  {(() => {
+                    const selected = parseFloat(duration);
+                    const actual = scriptStats.estimatedMinutesNum;
+                    const diffSec = Math.abs(actual - selected) * 60;
+                    if (diffSec <= 45) return <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded-md">✓ Đúng</span>;
+                    if (diffSec <= 90) return <span className="text-amber-600 dark:text-amber-400 font-bold text-[10px] bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded-md">≈ Gần đúng</span>;
+                    return <span className="text-red-500 dark:text-red-400 font-bold text-[10px] bg-red-100 dark:bg-red-900/40 px-1.5 py-0.5 rounded-md">✗ Lệch {Math.round(diffSec)}s</span>;
+                  })()}
                 </div>
               </div>
 
@@ -250,6 +317,220 @@ export default function Home() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0">
         {/* Left Column: Form Sidebar (5 Cols) */}
         <div className="lg:col-span-5 p-6 sm:p-8 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 overflow-y-auto space-y-6 transition-colors">
+
+          {/* ===== API KEY SECTION ===== */}
+          <div className={`rounded-2xl border-2 transition-all ${
+            keyValidStatus === "valid"
+              ? "border-emerald-500/40 bg-emerald-50/60 dark:bg-emerald-950/20"
+              : keyValidStatus === "invalid"
+              ? "border-red-400/60 bg-red-50/60 dark:bg-red-950/20"
+              : keyValidStatus === "warning"
+              ? "border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20"
+              : hasApiKey
+              ? "border-blue-400/40 bg-blue-50/40 dark:bg-blue-950/10"
+              : "border-amber-400/60 bg-amber-50/80 dark:bg-amber-950/20"
+          }`}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-4 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-xl text-base shadow-sm ${
+                  keyValidStatus === "valid"
+                    ? "bg-emerald-500 text-white"
+                    : keyValidStatus === "invalid"
+                    ? "bg-red-500 text-white"
+                    : keyValidStatus === "warning"
+                    ? "bg-amber-400 text-white"
+                    : hasApiKey
+                    ? "bg-blue-500 text-white"
+                    : "bg-amber-400 text-white"
+                }`}>
+                  {keyValidStatus === "valid" ? "🔑" : keyValidStatus === "invalid" ? "🚫" : hasApiKey ? "🔑" : "🔒"}
+                </div>
+                <div>
+                  <p className="text-xs font-extrabold text-zinc-800 dark:text-zinc-100">Gemini API Key</p>
+                  <p className={`text-[10px] font-semibold ${
+                    keyValidStatus === "valid"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : keyValidStatus === "invalid"
+                      ? "text-red-500 dark:text-red-400"
+                      : keyValidStatus === "warning"
+                      ? "text-amber-600 dark:text-amber-400"
+                      : hasApiKey
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-amber-600 dark:text-amber-400"
+                  }`}>
+                    {keyValidStatus === "valid"
+                      ? "✅ Key hợp lệ — Sẵn sàng tạo kịch bản"
+                      : keyValidStatus === "invalid"
+                      ? "❌ Key không hợp lệ"
+                      : keyValidStatus === "warning"
+                      ? "⚠️ Máy chủ bận — Chưa xác nhận được"
+                      : hasApiKey
+                      ? "🔑 Đã nhập key — Nhấn Kiểm tra để xác nhận"
+                      : "⚠️ Bắt buộc nhập để sử dụng"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowApiGuide((v) => !v)}
+                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white/70 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
+              >
+                {showApiGuide ? "✕ Đóng" : "❓ Cách lấy key"}
+              </button>
+            </div>
+
+            {/* Input Row */}
+            <div className="px-4 pb-4 space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    id="gemini-api-key-input"
+                    type={showApiKey ? "text" : "password"}
+                    placeholder="Dán API Key của bạn vào đây... (AIza...)"
+                    value={apiKey}
+                    onChange={(e) => handleApiKeyChange(e.target.value)}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs font-mono pr-10 focus:outline-none focus:ring-2 transition-all bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 ${
+                      hasApiKey
+                        ? "border-emerald-400/60 focus:ring-emerald-500/30"
+                        : "border-amber-400/60 focus:ring-amber-400/30"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                    title={showApiKey ? "Ẩn key" : "Hiện key"}
+                  >
+                    {showApiKey ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                {hasApiKey && (
+                  <button
+                    type="button"
+                    onClick={handleValidateKey}
+                    disabled={keyValidStatus === "checking"}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all whitespace-nowrap ${
+                      keyValidStatus === "valid"
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400/60 text-emerald-600 dark:text-emerald-400"
+                        : keyValidStatus === "invalid"
+                        ? "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700/60 text-red-500 hover:bg-red-100"
+                        : keyValidStatus === "warning"
+                        ? "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700/60 text-amber-600 dark:text-amber-400 hover:bg-amber-100"
+                        : "bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-700/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                    } disabled:opacity-60 disabled:cursor-wait`}
+                    title="Kiểm tra API Key"
+                  >
+                    {keyValidStatus === "checking" ? (
+                      <>
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        Đang kiểm tra...
+                      </>
+                    ) : keyValidStatus === "valid" ? (
+                      <>✅ Hợp lệ</>
+                    ) : keyValidStatus === "invalid" ? (
+                      <>❌ Thử lại</>
+                    ) : keyValidStatus === "warning" ? (
+                      <>⚠️ Thử lại</>
+                    ) : (
+                      <>🔌 Kiểm tra kết nối</>
+                    )}
+                  </button>
+                )}
+                {hasApiKey && (
+                  <button
+                    type="button"
+                    onClick={handleClearApiKey}
+                    className="px-3 py-2 rounded-xl border border-red-300 dark:border-red-700/60 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 text-xs font-bold transition-all"
+                    title="Xoá API Key"
+                  >
+                    🗑
+                  </button>
+                )}
+              </div>
+
+              {/* Validation result message */}
+              {keyValidMsg && (
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold ${
+                  keyValidStatus === "valid"
+                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-700/40"
+                    : keyValidStatus === "warning"
+                    ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-300/60 dark:border-amber-700/40"
+                    : "bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-300/60 dark:border-red-700/40"
+                }`}>
+                  <span>{keyValidStatus === "valid" ? "✅" : keyValidStatus === "warning" ? "⚠️" : "❌"}</span>
+                  <span>{keyValidMsg}</span>
+                </div>
+              )}
+
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                🔐 Key được lưu ngay trên trình duyệt của bạn, không gửi đến bất kỳ máy chủ nào khác.
+              </p>
+            </div>
+
+            {/* Collapsible Guide */}
+            {showApiGuide && (
+              <div className="mx-4 mb-4 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/60 overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5">
+                  <p className="text-xs font-extrabold text-white">📖 Hướng dẫn lấy Gemini API Key (miễn phí)</p>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="space-y-2">
+                    {[
+                      { step: "1", icon: "🌐", text: "Truy cập", link: { url: "https://aistudio.google.com/app/apikey", label: "aistudio.google.com" } },
+                      { step: "2", icon: "👤", text: "Đăng nhập tài khoản Google của bạn" },
+                      { step: "3", icon: "➕", text: 'Nhấn nút "Create API key" màu xanh' },
+                      { step: "4", icon: "📋", text: "Copy API key (bắt đầu bằng \"AIza...\")" },
+                      { step: "5", icon: "✅", text: "Dán vào ô nhập key ở trên là xong!" },
+                    ].map((item) => (
+                      <div key={item.step} className="flex items-start gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center mt-0.5">{item.step}</span>
+                        <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                          <span className="mr-1">{item.icon}</span>
+                          {item.text}
+                          {item.link && (
+                            <>
+                              {" "}
+                              <a
+                                href={item.link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 dark:text-blue-400 font-bold underline hover:text-blue-700 dark:hover:text-blue-300"
+                              >
+                                {item.link.label}
+                              </a>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold transition-all"
+                    >
+                      🚀 Mở Google AI Studio
+                    </a>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center">
+                    Gemini API miễn phí với hạn mức cao — đủ dùng thoải mái.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* ===== END API KEY SECTION ===== */}
+
           {/* Sample Presets */}
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
@@ -475,10 +756,18 @@ export default function Home() {
             </div>
 
             {/* Submit Button */}
+            {!hasApiKey && (
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60">
+                <span className="text-base">🔑</span>
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold">
+                  Vui lòng nhập <strong>Gemini API Key</strong> ở trên để bắt đầu tạo kịch bản.
+                </p>
+              </div>
+            )}
             <button
               type="submit"
-              disabled={isLoading}
-              className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 py-4 font-extrabold text-white shadow-xl shadow-blue-600/25 hover:shadow-blue-600/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-80 disabled:cursor-wait"
+              disabled={isLoading || !hasApiKey}
+              className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 py-4 font-extrabold text-white shadow-xl shadow-blue-600/25 hover:shadow-blue-600/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isLoading && (
                 <div

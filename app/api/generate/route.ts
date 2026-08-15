@@ -2,23 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Redis from 'ioredis';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-// Fallback models in case of 503 Service Unavailable / High demand spikes
+// Current Gemini model names (August 2026) — ordered by preference
 const FALLBACK_MODELS = [
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
   'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-flash-latest',
 ];
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt: scriptInfo, duration, char1Name, char1Pronoun, char1Voice, char2Name, char2Pronoun, char2Voice } = await req.json();
+    const { prompt: scriptInfo, duration, char1Name, char1Pronoun, char1Voice, char2Name, char2Pronoun, char2Voice, apiKey } = await req.json();
+
+    // Require user-provided API key
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+      return NextResponse.json({ error: 'Bạn chưa nhập Gemini API Key. Vui lòng nhập API Key để sử dụng dịch vụ.' }, { status: 401 });
+    }
 
     if (!scriptInfo || !char1Name || !char1Pronoun || !char2Name || !char2Pronoun) {
       return NextResponse.json({ error: 'Thiếu thông tin yêu cầu.' }, { status: 400 });
     }
+
+    // Use the user's own API key
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
 
     let systemInstruction = `Bạn là chuyên gia viết kịch bản hội thoại. Dựa vào thông tin yêu cầu, hãy viết kịch bản chia thành các phân đoạn rõ ràng (Phần 1, Phần 2,...).
 
@@ -44,18 +51,29 @@ QUY TẮC ĐỊNH DẠNG VÀ TRÌNH BÀY:
 
     if (duration) {
       const durationNum = parseInt(duration, 10);
-      // ~140 words/min for spoken dialogue in Vietnamese
-      const targetWordCount = durationNum * 140;
-      const targetSegments = Math.max(2, Math.ceil(durationNum / 5));
+      // Vietnamese conversational speech: ~130 words/min (more accurate than 140)
+      const WPM = 130;
+      const TOLERANCE_SEC = 45; // ±45s allowed deviation
+      const toleranceWords = Math.round((TOLERANCE_SEC / 60) * WPM); // ~98 words
+      const targetWordCount = Math.round(durationNum * WPM);
+      const minWords = targetWordCount - toleranceWords;
+      const maxWords = targetWordCount + toleranceWords;
+      const targetSegments = Math.max(2, Math.round(durationNum / 4));
+      const wordsPerSegment = Math.round(targetWordCount / targetSegments);
+
       systemInstruction += `
-9. YÊU CẦU VỀ ĐỘ DÀI (BẮT BUỘC TUÂN THỦ):
+9. YÊU CẦU ĐỘ DÀI — TUÂN THỦ NGHIÊM NGẶT (ĐÂY LÀ QUY TẮC QUAN TRỌNG NHẤT):
    - Thời lượng mục tiêu: ${durationNum} PHÚT khi đọc/diễn xuất thực tế.
-   - Tốc độ nói tự nhiên tiếng Việt: ~140 từ/phút → Kịch bản phải đạt TỐI THIỂU ${targetWordCount} từ.
-   - Chia thành ÍT NHẤT ${targetSegments} phân đoạn (## Phần 1, ## Phần 2,...) với nội dung phong phú, mỗi phần có chủ đề và diễn biến riêng.
-   - MỖI PHẦN phải có nhiều lượt trao đổi qua lại (không phải chỉ vài câu).
-   - KHÔNG được kết thúc sớm. Viết ĐẦY ĐỦ cho đến khi đạt đủ ${targetWordCount} từ.
-   - Nếu chủ đề đã được bao quát, hãy đi sâu thêm: phân tích chi tiết, ví dụ thực tế, phản biện, câu chuyện phụ, liên hệ thực tiễn — miễn là tự nhiên và phù hợp.`;
+   - Tốc độ nói hội thoại tiếng Việt: ~${WPM} từ/phút.
+   - Số từ MỤC TIÊU: khoảng ${targetWordCount} từ.
+   - GIỚI HẠN CHO PHÉP: Tối thiểu ${minWords} từ — Tối đa ${maxWords} từ.
+   - DỪNG NGAY khi đạt ${maxWords} từ. KHÔNG ĐƯỢC viết thêm dù nội dung chưa hết.
+   - Chia thành ĐÚNG ${targetSegments} phân đoạn (## Phần 1, ## Phần 2,...), mỗi phần khoảng ${wordsPerSegment} từ.
+   - Trước khi bắt đầu mỗi phần mới: ước tính xem đã viết được bao nhiêu từ. Nếu tổng gần đạt ${maxWords} từ → kết thúc phần hiện tại ngay.
+   - KHÔNG thêm nội dung kéo dài, giải thích thêm, hay đào sâu không cần thiết chỉ để đủ từ.
+   - KHÔNG kết thúc sớm hơn ${minWords} từ — hội thoại phải đủ chiều sâu và tự nhiên.`;
     }
+
 
     const prompt = `Hệ thống: ${systemInstruction}\n\nThông tin kịch bản:\n${scriptInfo}\n\nHãy viết kịch bản hội thoại:`;
 
