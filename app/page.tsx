@@ -271,6 +271,15 @@ export default function Home() {
 
         {/* Quick Action Stats & Controls */}
         <div className="flex items-center gap-3">
+          {/* Link to the MindX lesson-feedback tool */}
+          <Link
+            href="/nhan-xet"
+            className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-300 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all"
+            title="Viết nhận xét buổi học MindX"
+          >
+            🎓 Nhận xét buổi học
+          </Link>
+
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
