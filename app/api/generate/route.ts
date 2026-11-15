@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Redis from 'ioredis';
 
-// Current Gemini model names (August 2026) — ordered by preference
+// Current Gemini model names (November 2026) — ordered by preference.
+// Only models with a free tier, since users bring their own API key.
 const FALLBACK_MODELS = [
-  'gemini-3.7-flash',
+  'gemini-4-hydrogen',
+  'gemini-3.8-flash',
   'gemini-3.6-flash',
-  'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
-  'gemini-2.5-flash',
 ];
 
 export async function POST(req: NextRequest) {

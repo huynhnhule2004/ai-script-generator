@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Current Gemini model names (August 2026) — ordered by preference
+// Current Gemini model names (November 2026) — ordered by preference.
+// Gemini 3.8 Flash first (balance of speed and quality), Flash-Lite as the fast fallback.
+// Only models with a free tier, since users bring their own API key.
 const FALLBACK_MODELS = [
-  'gemini-3.7-flash',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
+  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
-  'gemini-2.5-flash',
+  'gemini-3.6-flash',
+  'gemini-4-hydrogen',
 ];
 
 // Generating a full feedback letter can take longer than the 10s serverless default
 export const maxDuration = 60;
+
+// Time budget kept safely under maxDuration so we always answer with JSON ourselves
+const TOTAL_BUDGET_MS = 52_000;
+const PER_ATTEMPT_MS = 35_000;
+const MIN_ATTEMPT_MS = 8_000;
 
 type SessionType = 'thuong' | 'checkpoint' | 'sanpham';
 
@@ -125,6 +131,7 @@ const TYPE_LABEL: Record<SessionType, string> = {
 };
 
 export async function POST(req: NextRequest) {
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
   try {
     const body = await req.json();
     const {
@@ -231,9 +238,22 @@ ${nextSession || '(không có — không nhắc tới buổi sau một cách c�
     let result = '';
     let lastError: unknown = null;
 
+    let timedOut = false;
+
     for (const modelName of FALLBACK_MODELS) {
+      // Stop before the platform kills the function — a killed function returns a
+      // plain-text error page instead of JSON, which the client cannot parse.
+      const remaining = deadline - Date.now();
+      if (remaining < MIN_ATTEMPT_MS) {
+        timedOut = true;
+        break;
+      }
+
       try {
-        const model = genAI.getGenerativeModel({ model: modelName, systemInstruction });
+        const model = genAI.getGenerativeModel(
+          { model: modelName, systemInstruction },
+          { timeout: Math.min(PER_ATTEMPT_MS, remaining) }
+        );
         const response = await model.generateContent(userContent);
         const text = response.response.text();
         if (text && text.trim()) {
@@ -245,6 +265,16 @@ ${nextSession || '(không có — không nhắc tới buổi sau một cách c�
         console.warn(`Model ${modelName} encountered error (trying fallback):`, err);
         lastError = err;
       }
+    }
+
+    if (!result && (timedOut || Date.now() >= deadline - MIN_ATTEMPT_MS)) {
+      return NextResponse.json(
+        {
+          error:
+            'Google AI phản hồi quá chậm nên chưa tạo xong bản nhận xét. Vui lòng bấm tạo lại; nếu vẫn lỗi, hãy rút gọn ghi chú hoặc chia danh sách học sinh thành hai lần tạo.',
+        },
+        { status: 504 }
+      );
     }
 
     if (!result) {

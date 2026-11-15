@@ -30,6 +30,29 @@ const PROFILE_FIELDS = [
   "linkFolder",
 ] as const;
 
+/** Everything typed for the current session, auto-saved so a reload doesn't lose it */
+const DRAFT_KEY = "mindx_feedback_draft";
+type Draft = {
+  sessionType: SessionType;
+  teacherName: string;
+  teacherRole: string;
+  courseName: string;
+  className: string;
+  sessionNumber: string;
+  sessionDate: string;
+  topic: string;
+  content: string;
+  generalNote: string;
+  students: StudentRow[];
+  homework: string;
+  nextSession: string;
+  linkDenise: string;
+  linkDocs: string;
+  linkVideo: string;
+  linkFolder: string;
+  output: string;
+};
+
 const todayISO = () => {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -70,6 +93,9 @@ export default function NhanXetPage() {
   const [isDark, setIsDark] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
+  const nextRowId = useRef(3);
+  const draftRestored = useRef(false);
+
   const hasApiKey = apiKey.trim().length > 0;
   const showToast = (msg: string) => setToastMessage(msg);
 
@@ -92,7 +118,112 @@ export default function NhanXetPage() {
     } catch {
       // corrupted profile — ignore and start fresh
     }
+
+    // Restore the auto-saved draft last so it wins over the saved class profile
+    try {
+      const d: Partial<Draft> = JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}");
+      const str = (v: unknown): v is string => typeof v === "string";
+      if (d.sessionType && SESSION_TYPES.some((t) => t.id === d.sessionType)) setSessionType(d.sessionType);
+      if (str(d.teacherName)) setTeacherName(d.teacherName);
+      if (str(d.teacherRole) && d.teacherRole) setTeacherRole(d.teacherRole);
+      if (str(d.courseName)) setCourseName(d.courseName);
+      if (str(d.className)) setClassName(d.className);
+      if (str(d.sessionNumber)) setSessionNumber(d.sessionNumber);
+      if (str(d.sessionDate) && d.sessionDate) setSessionDate(d.sessionDate);
+      if (str(d.topic)) setTopic(d.topic);
+      if (str(d.content)) setContent(d.content);
+      if (str(d.generalNote)) setGeneralNote(d.generalNote);
+      if (str(d.homework)) setHomework(d.homework);
+      if (str(d.nextSession)) setNextSession(d.nextSession);
+      if (str(d.linkDenise)) setLinkDenise(d.linkDenise);
+      if (str(d.linkDocs)) setLinkDocs(d.linkDocs);
+      if (str(d.linkVideo)) setLinkVideo(d.linkVideo);
+      if (str(d.linkFolder)) setLinkFolder(d.linkFolder);
+      if (str(d.output)) setOutput(d.output);
+      if (Array.isArray(d.students) && d.students.length > 0) {
+        const rows = d.students.map((s, i) => ({
+          id: i,
+          name: String(s?.name ?? ""),
+          note: String(s?.note ?? ""),
+          progress: String(s?.progress ?? ""),
+        }));
+        nextRowId.current = rows.length;
+        setStudents(rows);
+      }
+    } catch {
+      // corrupted draft — ignore and start fresh
+    }
+    draftRestored.current = true;
   }, []);
+
+  // Auto-save everything the teacher has typed so a reload never loses work
+  useEffect(() => {
+    if (!draftRestored.current) return;
+    const timer = setTimeout(() => {
+      const draft: Draft = {
+        sessionType,
+        teacherName,
+        teacherRole,
+        courseName,
+        className,
+        sessionNumber,
+        sessionDate,
+        topic,
+        content,
+        generalNote,
+        students,
+        homework,
+        nextSession,
+        linkDenise,
+        linkDocs,
+        linkVideo,
+        linkFolder,
+        output,
+      };
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch {
+        // storage full or blocked — the form still works, it just won't survive a reload
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    sessionType,
+    teacherName,
+    teacherRole,
+    courseName,
+    className,
+    sessionNumber,
+    sessionDate,
+    topic,
+    content,
+    generalNote,
+    students,
+    homework,
+    nextSession,
+    linkDenise,
+    linkDocs,
+    linkVideo,
+    linkFolder,
+    output,
+  ]);
+
+  /** Start a new session: wipe the per-session notes but keep teacher/class info and links */
+  const clearDraft = () => {
+    if (!window.confirm("Xoá toàn bộ ghi chú và bản nhận xét của buổi này để nhập buổi mới?")) return;
+    setSessionNumber("");
+    setSessionDate(todayISO());
+    setTopic("");
+    setContent("");
+    setGeneralNote("");
+    nextRowId.current = 3;
+    setStudents([emptyRow(0), emptyRow(1), emptyRow(2)]);
+    setHomework("");
+    setNextSession("");
+    setOutput("");
+    setError("");
+    showToast("Đã xoá nháp — sẵn sàng nhập buổi mới.");
+  };
 
   const saveProfile = () => {
     const profile = {
@@ -124,8 +255,6 @@ export default function NhanXetPage() {
       setIsDark(true);
     }
   };
-
-  const nextRowId = useRef(3);
 
   const filledStudents = useMemo(() => students.filter((s) => s.name.trim()), [students]);
   const studentCount = filledStudents.length;
@@ -169,7 +298,6 @@ export default function NhanXetPage() {
     if (!isReady || isLoading) return;
     setIsLoading(true);
     setError("");
-    setOutput("");
     setProgress(0);
 
     const progressInterval = setInterval(() => {
@@ -202,8 +330,24 @@ export default function NhanXetPage() {
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Đã xảy ra lỗi");
+      // The hosting platform answers with a plain-text page (not JSON) when the
+      // function times out or crashes, so never assume the body is JSON.
+      const raw = await response.text();
+      let data: { text?: string; error?: string } | null = null;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = null;
+      }
+
+      if (!data) {
+        throw new Error(
+          response.status === 504 || /TIMEOUT/i.test(raw)
+            ? "Máy chủ xử lý quá lâu nên bị ngắt. Vui lòng bấm tạo lại, hoặc rút gọn ghi chú / chia nhỏ danh sách học sinh."
+            : `Máy chủ trả về lỗi không mong muốn (mã ${response.status}). Vui lòng thử lại sau giây lát.`
+        );
+      }
+      if (!response.ok || !data.text) throw new Error(data.error || "Đã xảy ra lỗi");
 
       setProgress(100);
       setOutput(data.text);
@@ -581,6 +725,19 @@ export default function NhanXetPage() {
               ⚠️ Cần nhập API Key, tên giáo viên, khóa học, buổi số, ngày học và chủ đề.
             </p>
           )}
+          <div className="flex items-center justify-between gap-3 -mt-2">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              💾 Nháp được tự động lưu trên trình duyệt này — tải lại trang không mất.
+            </p>
+            <button
+              type="button"
+              onClick={clearDraft}
+              disabled={isLoading}
+              className="shrink-0 text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
+            >
+              🗑️ Xoá nháp, nhập buổi mới
+            </button>
+          </div>
         </div>
 
         {/* ===== RIGHT: OUTPUT ===== */}

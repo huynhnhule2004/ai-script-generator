@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Current Gemini model names (August 2026)
+// Current Gemini model names (November 2026) — free-tier models only
 const TEST_MODELS = [
-  'gemini-3.7-flash',
-  'gemini-3.6-flash',
-  'gemini-3.5-flash',
+  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
-  'gemini-2.5-flash',
+  'gemini-3.6-flash',
+  'gemini-4-hydrogen',
 ];
 
 /** Extract HTTP status code from Google SDK error message like "[400 Bad Request] ..." */
