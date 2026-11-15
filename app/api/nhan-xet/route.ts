@@ -44,11 +44,32 @@ QUY TẮC VỀ DỮ LIỆU (BẮT BUỘC):
 - CHỈ dùng thông tin giáo viên cung cấp. TUYỆT ĐỐI KHÔNG bịa thêm tên học sinh, số buổi, ngày tháng,
   điểm số, tiến độ phần trăm hay đường link không có trong dữ liệu đầu vào.
 - Giữ NGUYÊN VĂN các dòng đã cho sẵn: lời chào, câu dẫn, khối link, câu Compass, đoạn kết.
-- Được phép mở rộng ghi chú vắn tắt của giáo viên thành câu văn đầy đủ, đúng ngữ cảnh môn học.
+- Ghi chú của giáo viên rất vắn tắt, nhiều khi chỉ là từ khóa. Bạn PHẢI mở rộng chúng thành câu văn
+  đầy đủ, đúng ngữ cảnh môn học và nội dung buổi học. Mở rộng cách diễn đạt KHÔNG bị coi là bịa.
 
 QUY TẮC VIẾT NHẬN XÉT CÁ NHÂN (QUAN TRỌNG NHẤT):
 Mỗi học sinh là một mục đánh số. Dòng đầu là HỌ TÊN ĐẦY ĐỦ, xuống dòng rồi viết nhận xét.
 Trong phần nhận xét, gọi học sinh bằng TÊN GỌI NGẮN (một hoặc hai tiếng cuối của họ tên).
+
+GHI CHÚ CỦA GIÁO VIÊN CHO TỪNG EM CHỈ LÀ TỪ KHÓA RỜI RẠC (ví dụ: "nhanh, hay quên lưu bài",
+"chậm, ngại hỏi", "tốt"). TUYỆT ĐỐI KHÔNG chép lại từ khóa hay chỉ ghép chúng thành một câu cụt.
+Bạn PHẢI tự diễn giải từng từ khóa thành nhận xét đầy đủ, nhẹ nhàng, chuyên nghiệp để phụ huynh đọc:
+- GẮN VỚI NỘI DUNG BÀI HỌC: dựa vào chủ đề và nội dung đã dạy của buổi này để nói rõ con làm tốt
+  ĐIỀU GÌ và cần luyện thêm ĐIỀU GÌ. Ví dụ buổi học về vòng lặp, từ khóa "nhanh" viết thành
+  "con nắm cách dùng vòng lặp rất nhanh và tự hoàn thành bài thực hành trước các bạn"; từ khóa "chậm"
+  viết thành "con cần thêm thời gian để làm quen với cách viết vòng lặp". Nêu đúng tên kiến thức,
+  kỹ năng, bài thực hành hoặc dự án của buổi học, KHÔNG viết chung chung dùng cho buổi nào cũng được.
+- CHUYỂN TỪ KHÓA TIÊU CỰC THÀNH LỜI NHẸ NHÀNG: "lười" → "con cần chủ động hơn trong giờ thực hành";
+  "mất tập trung, nói chuyện" → "con chú ý lắng nghe hơn khi giáo viên hướng dẫn"; "yếu" → "con cần
+  củng cố thêm"; "chậm" → "con cần thêm thời gian luyện tập". Không dùng lại nguyên từ tiêu cực.
+- Từ khóa quá ngắn (chỉ "tốt", "ổn", "ok") vẫn phải viết đủ 3 phần: khen cụ thể theo nội dung bài,
+  gợi ý một hướng phát triển thêm (thử thách nâng cao, sáng tạo thêm cho sản phẩm) và một lời khuyên.
+- Học sinh chỉ có tên, không có ghi chú: viết nhận xét tích cực, trung tính theo nội dung buổi học
+  (tham gia đầy đủ, theo kịp bài), KHÔNG bịa ra điểm yếu hay sự việc riêng của con.
+- Phần được phép mở rộng là CÁCH DIỄN ĐẠT và liên hệ với nội dung bài học. KHÔNG bịa sự việc cụ thể
+  mà từ khóa không gợi ý (điểm số, tiến độ %, nghỉ học, đi trễ, mâu thuẫn với bạn...).
+- Mỗi em một cách viết riêng: thay đổi cách mở đầu và cấu trúc câu, không dùng một khuôn cho cả lớp.
+
 Nhận xét mỗi em là một đoạn liền mạch 3–4 câu, đủ 3 phần theo đúng thứ tự:
   1) ĐIỂM MẠNH — khả năng, ưu điểm, tiến bộ rõ rệt của con (chủ động, nhanh nhẹn, tích cực,
      tiếp thu nhanh, áp dụng tốt, nghiêm túc, tiến bộ hơn so với các buổi trước...).
@@ -224,7 +245,8 @@ ${content || '(không có — hãy suy ra từ chủ đề buổi học, bám s�
 Nhận xét chung về lớp (ghi chú vắn tắt):
 ${generalNote || '(không có — viết đánh giá chung tích cực, trung tính, dựa trên nội dung buổi học)'}
 
-Nhận xét cá nhân từng học sinh (mỗi dòng một em, dạng "Họ tên - ghi chú"):
+Nhận xét cá nhân từng học sinh (mỗi dòng một em, dạng "Họ tên - từ khóa". Đây chỉ là từ khóa gợi ý,
+hãy dựa vào chủ đề và nội dung đã dạy ở trên để viết thành nhận xét đầy đủ cho từng em):
 ${studentNotes || '(không có — bỏ hẳn mục nhận xét cá nhân chi tiết)'}
 
 Dặn dò / bài tập về nhà (ghi chú vắn tắt):

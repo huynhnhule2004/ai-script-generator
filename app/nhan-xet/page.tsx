@@ -629,7 +629,7 @@ export default function NhanXetPage() {
                     </div>
                     <input
                       className={`${inputClass} text-xs`}
-                      placeholder="Ghi chú: điểm mạnh, điểm cần cải thiện, lý do nếu chậm..."
+                      placeholder="Từ khóa thôi là đủ: nhanh, hay quên lưu bài, ngại hỏi..."
                       value={row.note}
                       onChange={(e) => updateStudentRow(row.id, "note", e.target.value)}
                     />
